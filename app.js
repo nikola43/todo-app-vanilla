@@ -4,58 +4,67 @@ document.addEventListener('DOMContentLoaded', () => {
     const taskList = document.getElementById('taskList');
     const taskCount = document.getElementById('taskCount');
     const clearBtn = document.getElementById('clearBtn');
+    const filterBtns = document.querySelectorAll('.filter-btn');
 
     let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+    let currentFilter = 'all';
 
     function saveTasks() {
         localStorage.setItem('tasks', JSON.stringify(tasks));
     }
 
+    function getFilteredTasks() {
+        if (currentFilter === 'active') return tasks.filter(t => !t.completed);
+        if (currentFilter === 'completed') return tasks.filter(t => t.completed);
+        return tasks;
+    }
+
     function renderTasks() {
+        const filtered = getFilteredTasks();
         taskList.innerHTML = '';
-        
-        if (tasks.length === 0) {
-            taskList.innerHTML = '<div class="empty-state">✨ No hay tareas aún</div>';
-            taskCount.textContent = '0 tareas';
-            return;
+
+        if (filtered.length === 0) {
+            const empty = document.createElement('li');
+            empty.className = 'empty-state';
+            empty.textContent = 'No tasks here yet 🌌';
+            taskList.appendChild(empty);
+        } else {
+            filtered.forEach((task, idx) => {
+                const originalIndex = tasks.indexOf(task);
+                const li = document.createElement('li');
+                li.className = 'task-item' + (task.completed ? ' completed' : '');
+                
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.className = 'task-checkbox';
+                cb.checked = task.completed;
+                cb.addEventListener('change', () => toggleTask(originalIndex));
+                
+                const span = document.createElement('span');
+                span.className = 'task-text';
+                span.textContent = task.text;
+                
+                const del = document.createElement('button');
+                del.className = 'delete-btn';
+                del.innerHTML = '×';
+                del.addEventListener('click', () => deleteTask(originalIndex));
+                
+                li.appendChild(cb);
+                li.appendChild(span);
+                li.appendChild(del);
+                taskList.appendChild(li);
+            });
         }
-
-        tasks.forEach((task, index) => {
-            const li = document.createElement('li');
-            li.className = `task-item ${task.completed ? 'completed' : ''}`;
-            
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.className = 'task-checkbox';
-            checkbox.checked = task.completed;
-            checkbox.addEventListener('change', () => toggleTask(index));
-            
-            const span = document.createElement('span');
-            span.className = 'task-text';
-            span.textContent = task.text;
-            
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'delete-btn';
-            deleteBtn.innerHTML = '×';
-            deleteBtn.addEventListener('click', () => deleteTask(index));
-            
-            li.appendChild(checkbox);
-            li.appendChild(span);
-            li.appendChild(deleteBtn);
-            taskList.appendChild(li);
-        });
-
         updateCount();
     }
 
     function addTask() {
         const text = taskInput.value.trim();
         if (!text) return;
-        
         tasks.push({ text, completed: false, id: Date.now() });
         saveTasks();
-        renderTasks();
         taskInput.value = '';
+        renderTasks();
         taskInput.focus();
     }
 
@@ -72,9 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateCount() {
-        const total = tasks.length;
-        const completed = tasks.filter(t => t.completed).length;
-        taskCount.textContent = `${total} tarea${total !== 1 ? 's' : ''} (${completed} completada${completed !== 1 ? 's' : ''})`;
+        const active = tasks.filter(t => !t.completed).length;
+        taskCount.textContent = active + ' item' + (active !== 1 ? 's' : '') + ' left';
     }
 
     addBtn.addEventListener('click', addTask);
@@ -86,6 +94,15 @@ document.addEventListener('DOMContentLoaded', () => {
         tasks = tasks.filter(t => !t.completed);
         saveTasks();
         renderTasks();
+    });
+
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFilter = btn.dataset.filter;
+            renderTasks();
+        });
     });
 
     renderTasks();
