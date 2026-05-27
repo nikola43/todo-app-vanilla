@@ -1,116 +1,92 @@
-const todoList = document.getElementById('todo-list');
-const todoInput = document.getElementById('todo-input');
-const addBtn = document.getElementById('add-btn');
-const itemCount = document.getElementById('item-count');
-const clearBtn = document.getElementById('clear-btn');
-const filterBtns = document.querySelectorAll('.filter');
+document.addEventListener('DOMContentLoaded', () => {
+    const taskInput = document.getElementById('taskInput');
+    const addBtn = document.getElementById('addBtn');
+    const taskList = document.getElementById('taskList');
+    const taskCount = document.getElementById('taskCount');
+    const clearBtn = document.getElementById('clearBtn');
 
-let todos = JSON.parse(localStorage.getItem('todos')) || [];
-let currentFilter = 'all';
+    let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
 
-// Save to localStorage
-function saveTodos() {
-  localStorage.setItem('todos', JSON.stringify(todos));
-}
+    function saveTasks() {
+        localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
 
-// Render list based on filter
-function render() {
-  const filtered = todos.filter(todo => {
-    if (currentFilter === 'active') return !todo.completed;
-    if (currentFilter === 'completed') return todo.completed;
-    return true;
-  });
+    function renderTasks() {
+        taskList.innerHTML = '';
+        
+        if (tasks.length === 0) {
+            taskList.innerHTML = '<div class="empty-state">✨ No hay tareas aún</div>';
+            taskCount.textContent = '0 tareas';
+            return;
+        }
 
-  if (filtered.length === 0) {
-    todoList.innerHTML = `<li class="empty-message">No tasks here yet ✨</li>`;
-  } else {
-    todoList.innerHTML = filtered.map(todo => `
-      <li class="todo-item" data-id="${todo.id}">
-        <input type="checkbox" ${todo.completed ? 'checked' : ''} />
-        <span class="todo-text ${todo.completed ? 'completed' : ''}">${escapeHtml(todo.text)}</span>
-        <button class="delete-btn">✕</button>
-      </li>
-    `).join('');
-  }
+        tasks.forEach((task, index) => {
+            const li = document.createElement('li');
+            li.className = `task-item ${task.completed ? 'completed' : ''}`;
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'task-checkbox';
+            checkbox.checked = task.completed;
+            checkbox.addEventListener('change', () => toggleTask(index));
+            
+            const span = document.createElement('span');
+            span.className = 'task-text';
+            span.textContent = task.text;
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.innerHTML = '×';
+            deleteBtn.addEventListener('click', () => deleteTask(index));
+            
+            li.appendChild(checkbox);
+            li.appendChild(span);
+            li.appendChild(deleteBtn);
+            taskList.appendChild(li);
+        });
 
-  const active = todos.filter(t => !t.completed).length;
-  itemCount.textContent = `${active} item${active !== 1 ? 's' : ''} left`;
-  updateFilterBtns();
-}
+        updateCount();
+    }
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
+    function addTask() {
+        const text = taskInput.value.trim();
+        if (!text) return;
+        
+        tasks.push({ text, completed: false, id: Date.now() });
+        saveTasks();
+        renderTasks();
+        taskInput.value = '';
+        taskInput.focus();
+    }
 
-function updateFilterBtns() {
-  filterBtns.forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.filter === currentFilter);
-  });
-}
+    function toggleTask(index) {
+        tasks[index].completed = !tasks[index].completed;
+        saveTasks();
+        renderTasks();
+    }
 
-// Add todo
-function addTodo() {
-  const text = todoInput.value.trim();
-  if (!text) return;
-  todos.unshift({ id: Date.now(), text, completed: false });
-  todoInput.value = '';
-  saveTodos();
-  render();
-}
+    function deleteTask(index) {
+        tasks.splice(index, 1);
+        saveTasks();
+        renderTasks();
+    }
 
-// Toggle complete
-function toggleComplete(id) {
-  const todo = todos.find(t => t.id === id);
-  if (todo) {
-    todo.completed = !todo.completed;
-    saveTodos();
-    render();
-  }
-}
+    function updateCount() {
+        const total = tasks.length;
+        const completed = tasks.filter(t => t.completed).length;
+        taskCount.textContent = `${total} tarea${total !== 1 ? 's' : ''} (${completed} completada${completed !== 1 ? 's' : ''})`;
+    }
 
-// Delete todo
-function deleteTodo(id) {
-  todos = todos.filter(t => t.id !== id);
-  saveTodos();
-  render();
-}
+    addBtn.addEventListener('click', addTask);
+    taskInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') addTask();
+    });
 
-// Clear completed
-function clearCompleted() {
-  todos = todos.filter(t => !t.completed);
-  saveTodos();
-  render();
-}
+    clearBtn.addEventListener('click', () => {
+        tasks = tasks.filter(t => !t.completed);
+        saveTasks();
+        renderTasks();
+    });
 
-// Event listeners
-addBtn.addEventListener('click', addTodo);
-todoInput.addEventListener('keypress', e => {
-  if (e.key === 'Enter') addTodo();
+    renderTasks();
 });
-
-clearBtn.addEventListener('click', clearCompleted);
-
-filterBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    currentFilter = btn.dataset.filter;
-    render();
-  });
-});
-
-// Delegate events on the list
-todoList.addEventListener('click', e => {
-  const item = e.target.closest('.todo-item');
-  if (!item) return;
-  const id = Number(item.dataset.id);
-
-  if (e.target.classList.contains('delete-btn')) {
-    deleteTodo(id);
-  } else if (e.target.type === 'checkbox') {
-    toggleComplete(id);
-  }
-});
-
-// Initial render
-render();
